@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Game - Juan Carlos Estupiñan</title>
+    <style>
+        :root {
+            --bg-color: #1a1a2e;
+            --snake-color: #00ff88;
+            --food-color: #ff3e3e;
+            --text-color: #ffffff;
+            --canvas-bg: #16213e;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        h1 { margin: 0; font-size: 2rem; color: var(--snake-color); }
+        .author { font-size: 1rem; opacity: 0.8; }
+        .stats { font-size: 1.2rem; margin: 10px 0; display: flex; gap: 20px; }
+
+        canvas {
+            border: 4px solid #0f3460;
+            background-color: var(--canvas-bg);
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+        }
+
+        #overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            transition: opacity 0.3s;
+        }
+
+        #overlay.hidden { display: none; }
+
+        .message-box {
+            background: #0f3460;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            border: 2px solid var(--snake-color);
+        }
+
+        .blink { animation: blinker 1.5s linear infinite; font-weight: bold; color: var(--snake-color); }
+        @keyframes blinker { 50% { opacity: 0; } }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>SNAKE CLASSIC</h1>
+        <div class="author">Autor: Juan Carlos Estupiñan</div>
+        <div class="stats">
+            <div>Puntos: <span id="score">0</span></div>
+            <div>Velocidad: <span id="speedDisplay">250</span>ms</div>
+        </div>
+    </div>
+
+    <div style="position: relative;">
+        <canvas id="snakeGame" width="400" height="400"></canvas>
+        
+        <div id="overlay">
+            <div class="message-box">
+                <h2 id="msgTitle">¡Bienvenido!</h2>
+                <p id="msgText">Usa las flechas para moverte.</p>
+                <p class="blink">Presiona CUALQUIER TECLA para iniciar</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('snakeGame');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const speedDisplay = document.getElementById('speedDisplay');
+        const overlay = document.getElementById('overlay');
+        const msgTitle = document.getElementById('msgTitle');
+        const msgText = document.getElementById('msgText');
+
+        const box = 20;
+        const canvasSize = 400;
+        let score = 0;
+        let gameActive = false;
+        let gameInterval;
+        let currentSpeed = 250; // Velocidad inicial
+
+        let snake = [];
+        let food = {};
+        let d = ""; 
+
+        function initGame() {
+            snake = [{ x: 9 * box, y: 10 * box }];
+            score = 0;
+            currentSpeed = 250;
+            scoreElement.innerHTML = score;
+            speedDisplay.innerHTML = currentSpeed;
+            d = "";
+            spawnFood();
+            gameActive = true;
+            overlay.classList.add('hidden');
+            
+            startGameLoop();
+        }
+
+        function startGameLoop() {
+            if (gameInterval) clearInterval(gameInterval);
+            gameInterval = setInterval(draw, currentSpeed);
+        }
+
+        function spawnFood() {
+            food = {
+                x: Math.floor(Math.random() * 19 + 1) * box,
+                y: Math.floor(Math.random() * 19 + 1) * box
+            };
+        }
+
+        document.addEventListener("keydown", handleInput);
+
+        function handleInput(event) {
+            // Iniciar con cualquier tecla si el juego no está activo
+            if (!gameActive) {
+                initGame();
+                return;
+            }
+
+            let key = event.keyCode;
+            // Evitar giro de 180 grados
+            if (key == 37 && d != "RIGHT") d = "LEFT";
+            else if (key == 38 && d != "DOWN") d = "UP";
+            else if (key == 39 && d != "LEFT") d = "RIGHT";
+            else if (key == 40 && d != "UP") d = "DOWN";
+        }
+
+        function collision(head, array) {
+            for (let i = 0; i < array.length; i++) {
+                if (head.x == array[i].x && head.y == array[i].y) return true;
+            }
+            return false;
+        }
+
+        function draw() {
+            ctx.fillStyle = "#16213e";
+            ctx.fillRect(0, 0, canvasSize, canvasSize);
+
+            // Dibujar serpiente
+            for (let i = 0; i < snake.length; i++) {
+                ctx.fillStyle = (i == 0) ? "#00ff88" : "#00cc6e";
+                ctx.fillRect(snake[i].x, snake[i].y, box, box);
+                ctx.strokeStyle = "#16213e";
+                ctx.strokeRect(snake[i].x, snake[i].y, box, box);
+            }
+
+            // Dibujar comida
+            ctx.fillStyle = "#ff3e3e";
+            ctx.fillRect(food.x, food.y, box, box);
+
+            let snakeX = snake[0].x;
+            let snakeY = snake[0].y;
+
+            if (d == "LEFT") snakeX -= box;
+            if (d == "UP") snakeY -= box;
+            if (d == "RIGHT") snakeX += box;
+            if (d == "DOWN") snakeY += box;
+
+            // Si come
+            if (snakeX == food.x && snakeY == food.y) {
+                score++;
+                scoreElement.innerHTML = score;
+                
+                // Ajustar velocidad (aumentar velocidad = disminuir intervalo)
+                // Se reduce el intervalo para ir más rápido, con un límite de 50ms
+                if (currentSpeed > 50) {
+                    currentSpeed -= 20; // Ajuste gradual para mejorar jugabilidad
+                    speedDisplay.innerHTML = currentSpeed;
+                    startGameLoop(); // Reiniciar loop con nueva velocidad
+                }
+                
+                spawnFood();
+            } else {
+                if (d != "") snake.pop();
+            }
+
+            let newHead = { x: snakeX, y: snakeY };
+
+            // Game Over: Paredes o Chocar consigo misma
+            if (
+                snakeX < 0 || snakeX >= canvasSize || 
+                snakeY < 0 || snakeY >= canvasSize || 
+                collision(newHead, snake)
+            ) {
+                gameOver();
+                return;
+            }
+
+            if (d != "") snake.unshift(newHead);
+        }
+
+        function gameOver() {
+            clearInterval(gameInterval);
+            gameActive = false;
+            msgTitle.innerHTML = "¡PARTIDA FINALIZADA!";
+            msgText.innerHTML = `Perdiste por chocar. <br> Puntaje: ${score}`;
+            overlay.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
